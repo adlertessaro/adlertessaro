@@ -45,7 +45,7 @@ I build real-world systems — from ERP integrations and automation pipelines to
 
 | Project | Description | Stack |
 |---|---|---|
-| **Orkestria 2.0** | Internal orchestration platform — multi-agent system, schedulers, AI integration, and multi-domain business logic | Next.js · TypeScript · Supabase |
+| **Orkestria** | Internal orchestration platform — multi-agent system, schedulers, AI integration, and multi-domain business logic | Next.js · TypeScript · Supabase |
 | **Scanntech Integration** | Automated pipeline syncing pharmacy ERP with Scanntech's retail analytics API, handling large data volumes daily | Python · PostgreSQL |
 | **HOS Helper** | Operational tools for pharmacy management — helper services and automation for HOS Farma platform | TypeScript · Node.js |
 | **Tessaro Labs** | Personal lab for internal tooling, experiments, and product prototypes | Next.js · TypeScript |
@@ -102,7 +102,7 @@ Construo sistemas reais — desde integrações com ERP e pipelines de automaç�
 
 | Projeto | Descrição | Stack |
 |---|---|---|
-| **Orkestria 2.0** | Plataforma interna de orquestração — sistema multi-agente, schedulers, integração com IA e lógica de múltiplos domínios de negócio | Next.js · TypeScript · Supabase |
+| **Orkestria** | Plataforma interna de orquestração — sistema multi-agente, schedulers, integração com IA e lógica de múltiplos domínios de negócio | Next.js · TypeScript · Supabase |
 | **Integração Scanntech** | Pipeline automatizado sincronizando ERP de farmácia com a API de analytics da Scanntech, processando grandes volumes diariamente | Python · PostgreSQL |
 | **HOS Helper** | Ferramentas operacionais para gestão de farmácias — serviços auxiliares e automação para a plataforma HOS Farma | TypeScript · Node.js |
 | **Tessaro Labs** | Laboratório pessoal para ferramentas internas, experimentos e protótipos de produto | Next.js · TypeScript |
