@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S.</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @font-face {
+            font-family: 'JarvisFont';
+            src: local('SF Pro Display'), local('Helvetica Neue'), local('Arial');
+        }
+
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'JarvisFont', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        canvas#particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hud-ring {
+            position: absolute;
+            border: 1px solid rgba(0, 170, 255, 0.15);
+            border-radius: 50%;
+            animation: ring-rotate 20s linear infinite;
+        }
+
+        .hud-ring:nth-child(1) { width: 300px; height: 300px; }
+        .hud-ring:nth-child(2) {
+            width: 400px; height: 400px;
+            animation-direction: reverse;
+            animation-duration: 30s;
+            border-color: rgba(0, 170, 255, 0.08);
+        }
+        .hud-ring:nth-child(3) {
+            width: 500px; height: 500px;
+            animation-duration: 40s;
+            border-color: rgba(0, 170, 255, 0.05);
+        }
+
+        @keyframes ring-rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .core-glow {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 170, 255, 0.4) 0%, rgba(0, 170, 255, 0.1) 50%, transparent 70%);
+            filter: blur(20px);
+            transition: all 0.3s ease;
+            z-index: 3;
+        }
+
+        .core-glow.active {
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(0, 200, 255, 0.8) 0%, rgba(0, 170, 255, 0.3) 40%, transparent 70%);
+            filter: blur(25px);
+        }
+
+        .core-glow.speaking {
+            animation: pulse-speak 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse-speak {
+            from { transform: scale(1); opacity: 0.8; }
+            to { transform: scale(1.3); opacity: 1; }
+        }
+
+        .status {
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            text-align: center;
+        }
+
+        .status-text {
+            font-size: 14px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(0, 170, 255, 0.6);
+            transition: all 0.5s ease;
+        }
+
+        .status-text.active {
+            color: rgba(0, 220, 255, 1);
+            text-shadow: 0 0 20px rgba(0, 170, 255, 0.5);
+        }
+
+        .transcript {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .transcript-line {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.8);
+            margin: 8px 0;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fade-in 0.4s ease forwards;
+        }
+
+        .transcript-line.jarvis {
+            color: rgba(0, 200, 255, 0.9);
+            font-style: italic;
+        }
+
+        @keyframes fade-in {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            letter-spacing: 12px;
+            color: rgba(0, 170, 255, 0.5);
+            font-weight: 300;
+        }
+
+        .waveform {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            z-index: 5;
+            opacity: 0.3;
+        }
+
+        .connection-dot {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff3333;
+            z-index: 10;
+            transition: background 0.3s;
+        }
+
+        .connection-dot.connected {
+            background: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particles"></canvas>
+
+    <div class="overlay">
+        <div class="hud-ring"></div>
+        <div class="hud-ring"></div>
+        <div class="hud-ring"></div>
+        <div class="core-glow" id="core"></div>
+    </div>
+
+    <div class="header">
+        <h1>J.A.R.V.I.S.</h1>
+    </div>
+
+    <div class="transcript" id="transcript"></div>
+
+    <div class="status">
+        <div class="status-text" id="status">STANDBY</div>
+    </div>
+
+    <canvas class="waveform" id="waveform"></canvas>
+    <div class="connection-dot" id="connectionDot"></div>
+
+    <script>
+    (function() {
+        // ── Particle System ──
+        const canvas = document.getElementById('particles');
+        const ctx = canvas.getContext('2d');
+        let W, H;
+        let audioLevel = 0;
+        let targetAudioLevel = 0;
+        let currentState = 'idle';
+        let isSpeaking = false;
+
+        function resize() {
+            W = canvas.width = window.innerWidth;
+            H = canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.angle = Math.random() * Math.PI * 2;
+                this.radius = 80 + Math.random() * 180;
+                this.baseRadius = this.radius;
+                this.x = W / 2 + Math.cos(this.angle) * this.radius;
+                this.y = H / 2 + Math.sin(this.angle) * this.radius;
+                this.vAngle = (Math.random() - 0.5) * 0.008;
+                this.size = Math.random() * 2 + 0.5;
+                this.baseSize = this.size;
+                this.alpha = Math.random() * 0.5 + 0.1;
+                this.baseAlpha = this.alpha;
+                this.orbitSpeed = (Math.random() - 0.5) * 0.003;
+                this.pulsePhase = Math.random() * Math.PI * 2;
+                this.pulseSpeed = 0.02 + Math.random() * 0.03;
+                this.layer = Math.floor(Math.random() * 3);
+            }
+
+            update(time) {
+                let energy = currentState === 'idle' ? 0.2 : currentState === 'waiting_phrase' ? 0.5 : 1.0;
+                let audioInfluence = isSpeaking ? audioLevel * 3 : audioLevel;
+
+                this.angle += this.vAngle * (1 + audioInfluence * 2) * energy;
+                this.pulsePhase += this.pulseSpeed;
+
+                let pulse = Math.sin(this.pulsePhase) * 0.3;
+                let radiusWobble = Math.sin(time * 0.001 + this.angle * 3) * 15 * energy;
+                let audioExpand = audioInfluence * 60 * energy;
+
+                this.radius = this.baseRadius + radiusWobble + audioExpand + pulse * 20;
+                this.x = W / 2 + Math.cos(this.angle) * this.radius;
+                this.y = H / 2 + Math.sin(this.angle) * this.radius;
+
+                this.size = this.baseSize * (1 + audioInfluence * 2 * energy);
+                this.alpha = this.baseAlpha * (0.5 + energy * 0.5 + audioInfluence);
+                this.alpha = Math.min(this.alpha, 1);
+            }
+
+            draw() {
+                let hue = 195 + Math.sin(this.pulsePhase) * 15;
+                let saturation = 80 + audioLevel * 20;
+                let lightness = 50 + audioLevel * 30;
+
+                if (isSpeaking) {
+                    hue = 190 + Math.sin(this.pulsePhase * 2) * 25;
+                    lightness = 60 + audioLevel * 40;
+                }
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, ${this.alpha})`;
+                ctx.fill();
+
+                if (this.alpha > 0.3 && this.size > 1.5) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+                    ctx.fillStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, ${this.alpha * 0.15})`;
+                    ctx.fill();
+                }
+            }
+        }
+
+        const PARTICLE_COUNT = 200;
+        const particles = Array.from({ length: PARTICLE_COUNT }, () => new Particle());
+
+        // ── Orbital Rings ──
+        class OrbitalRing {
+            constructor(radius, speed, tilt, dotCount) {
+                this.radius = radius;
+                this.speed = speed;
+                this.tilt = tilt;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.dots = Array.from({ length: dotCount }, () => ({
+                    angle: Math.random() * Math.PI * 2,
+                    size: Math.random() * 1.5 + 0.5,
+                }));
+            }
+
+            update(time) {
+                this.rotation += this.speed;
+            }
+
+            draw() {
+                let energy = currentState === 'active' ? 1 : currentState === 'waiting_phrase' ? 0.5 : 0.2;
+
+                ctx.save();
+                ctx.translate(W / 2, H / 2);
+                ctx.rotate(this.rotation);
+
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.radius + audioLevel * 30, this.radius * this.tilt + audioLevel * 20, 0, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(0, 170, 255, ${0.06 * energy})`;
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+
+                for (const dot of this.dots) {
+                    let dx = Math.cos(dot.angle + this.rotation * 2) * (this.radius + audioLevel * 30);
+                    let dy = Math.sin(dot.angle + this.rotation * 2) * (this.radius * this.tilt + audioLevel * 20);
+                    ctx.beginPath();
+                    ctx.arc(dx, dy, dot.size * (1 + audioLevel), 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(0, 200, 255, ${0.3 * energy + audioLevel * 0.3})`;
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        const rings = [
+            new OrbitalRing(160, 0.001, 0.6, 12),
+            new OrbitalRing(220, -0.0007, 0.4, 8),
+            new OrbitalRing(280, 0.0005, 0.7, 10),
+        ];
+
+        // ── Connection Lines ──
+        function drawConnections() {
+            let maxDist = 60 + audioLevel * 40;
+            let energy = currentState === 'active' ? 1 : 0.3;
+
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    let dx = particles[i].x - particles[j].x;
+                    let dy = particles[i].y - particles[j].y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < maxDist) {
+                        let alpha = (1 - dist / maxDist) * 0.15 * energy;
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = `rgba(0, 170, 255, ${alpha})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        // ── Waveform ──
+        const waveCanvas = document.getElementById('waveform');
+        const waveCtx = waveCanvas.getContext('2d');
+        const waveHistory = new Array(128).fill(0);
+
+        function resizeWave() {
+            waveCanvas.width = window.innerWidth;
+            waveCanvas.height = 80;
+        }
+        resizeWave();
+        window.addEventListener('resize', resizeWave);
+
+        function drawWaveform(time) {
+            waveHistory.shift();
+            waveHistory.push(audioLevel);
+
+            waveCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+
+            let energy = currentState === 'active' ? 1 : 0.2;
+
+            waveCtx.beginPath();
+            waveCtx.moveTo(0, waveCanvas.height);
+
+            for (let i = 0; i < waveHistory.length; i++) {
+                let x = (i / waveHistory.length) * waveCanvas.width;
+                let amplitude = waveHistory[i] * 60 * energy;
+                let wave = Math.sin(time * 0.003 + i * 0.2) * amplitude;
+                let y = waveCanvas.height / 2 - wave;
+                if (i === 0) {
+                    waveCtx.moveTo(x, y);
+                } else {
+                    waveCtx.lineTo(x, y);
+                }
+            }
+
+            waveCtx.strokeStyle = `rgba(0, 170, 255, ${0.3 * energy + audioLevel * 0.3})`;
+            waveCtx.lineWidth = 1.5;
+            waveCtx.stroke();
+        }
+
+        // ── Main Loop ──
+        function animate(time) {
+            ctx.clearRect(0, 0, W, H);
+
+            // Smooth audio level
+            audioLevel += (targetAudioLevel - audioLevel) * 0.15;
+
+            for (const p of particles) p.update(time);
+            for (const r of rings) { r.update(time); r.draw(); }
+            drawConnections();
+            for (const p of particles) p.draw();
+            drawWaveform(time);
+
+            requestAnimationFrame(animate);
+        }
+        requestAnimationFrame(animate);
+
+        // ── WebSocket ──
+        const statusEl = document.getElementById('status');
+        const coreEl = document.getElementById('core');
+        const transcriptEl = document.getElementById('transcript');
+        const connDot = document.getElementById('connectionDot');
+        let ws;
+        let transcriptLines = [];
+
+        function connect() {
+            ws = new WebSocket('ws://localhost:8765');
+
+            ws.onopen = () => {
+                connDot.classList.add('connected');
+            };
+
+            ws.onclose = () => {
+                connDot.classList.remove('connected');
+                setTimeout(connect, 2000);
+            };
+
+            ws.onerror = () => {
+                connDot.classList.remove('connected');
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                handleMessage(msg);
+            };
+        }
+
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'state':
+                    currentState = msg.state;
+                    updateStateUI(msg.state);
+                    break;
+                case 'audio_level':
+                    targetAudioLevel = msg.level;
+                    break;
+                case 'speaking':
+                    isSpeaking = msg.active;
+                    if (msg.active) {
+                        coreEl.classList.add('speaking');
+                    } else {
+                        coreEl.classList.remove('speaking');
+                    }
+                    break;
+                case 'user_speech':
+                    addTranscript('Você', msg.text);
+                    break;
+                case 'response':
+                    addTranscript('Jarvis', msg.text, true);
+                    break;
+            }
+        }
+
+        function updateStateUI(state) {
+            switch (state) {
+                case 'idle':
+                    statusEl.textContent = 'STANDBY';
+                    statusEl.classList.remove('active');
+                    coreEl.classList.remove('active');
+                    break;
+                case 'waiting_phrase':
+                    statusEl.textContent = 'LISTENING...';
+                    statusEl.classList.add('active');
+                    coreEl.classList.remove('active');
+                    break;
+                case 'active':
+                    statusEl.textContent = 'ONLINE';
+                    statusEl.classList.add('active');
+                    coreEl.classList.add('active');
+                    clearTranscript();
+                    break;
+            }
+        }
+
+        function addTranscript(speaker, text, isJarvis = false) {
+            const line = document.createElement('div');
+            line.className = 'transcript-line' + (isJarvis ? ' jarvis' : '');
+            line.textContent = `${speaker}: ${text}`;
+            transcriptEl.appendChild(line);
+            transcriptLines.push(line);
+
+            if (transcriptLines.length > 6) {
+                const old = transcriptLines.shift();
+                old.remove();
+            }
+        }
+
+        function clearTranscript() {
+            transcriptEl.innerHTML = '';
+            transcriptLines = [];
+        }
+
+        connect();
+    })();
+    </script>
+</body>
+</html>
